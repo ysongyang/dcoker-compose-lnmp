@@ -1,0 +1,59 @@
+version: '3'
+networks:
+    lnmp-net:
+        driver: bridge
+services:
+    mariadb:
+        container_name: mariadb
+        image: mariadb:10.4
+        ports:
+            - 3307:3306    #对外端口3307
+        environment:
+            MYSQL_ROOT_PASSWORD: 123456    #初始化root密码
+        volumes:
+            - /data/lnmp/mariadb/db:/var/lib/mysql
+            - /data/lnmp/mariadb/conf.d:/etc/my.cnf.d
+            - /data/lnmp/mariadb/logs:/var/log/mariadb
+        restart: always
+        networks:
+            - lnmp-net
+    nginx:
+        container_name: nginx
+        image: nginx:1.16.1
+        ports:
+            - 80:80
+            - 443:443
+        volumes:
+            - /data/lnmp/www:/usr/share/nginx/html
+            - /data/lnmp/nginx/nginx.conf:/etc/nginx/nginx.conf   #需要通过docker cp 将容器文件copy出来
+            - /data/lnmp/nginx/conf.d:/etc/nginx/conf.d  #需要通过docker cp 将容器文件copy出来
+            - /data/lnmp/nginx/logs:/var/log/nginx
+        depends_on:
+            - mariadb
+            - redis
+            - php
+        restart: always
+        networks:
+            - lnmp-net
+    php:
+        container_name: php
+        image: hwphp:7.4   #这里是自定义镜像，基于php7.4，支持swoole和Redis ，先在php目录下构建php（docker build -t hwphp:7.4 .）
+        volumes:
+            - /data/lnmp/www:/usr/share/nginx/html
+            - /data/lnmp/php/php.ini:/usr/local/etc/php/php.ini   #需要通过docker cp 将容器文件copy出来
+            - /data/lnmp/php/logs:/usr/local/var/log
+            - /data/lnmp/php/www.conf:/usr/local/etc/php-fpm.d/www.conf  #需要通过docker cp 将容器文件copy出来
+        restart: always
+        networks:
+            - lnmp-net
+    redis:
+        container_name: redis
+        image: redis:5.0.7
+        ports:
+            - 6380:6379
+        volumes:
+            - /data/lnmp/redis/db:/var/lib/redis
+            - /data/lnmp/redis/logs:/var/log/redis
+        restart: always
+        networks:
+            - lnmp-net
